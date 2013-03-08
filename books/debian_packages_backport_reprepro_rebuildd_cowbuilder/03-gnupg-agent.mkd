@@ -1,0 +1,135 @@
+# gnupg-agent, le maître des clefs
+
+`gnupg-agent` permet de mémoriser, durant un temps déterminé, le mot de
+passe associé à une clef.
+Il fonctionne en association avec un autre programme qui servira
+d'interface de saisie de la phrase de passe. Il en existe plusieurs,
+selon que vous avez besoin d'une interface graphique ou non.
+
+La version la plus "basique" s'appelle `pinentry`. Il s'agit en fait
+d'un meta package, fournit par `mew-bin`. Dans notre cas, nous
+utiliserons `pinentry-curses` qui permet d'obtenir une version certes
+dépouillée, mais néanmoins un peu plus fonctionnelle de `pinentry`
+
+## Installation
+
+Si ce n'est pas déjà fait, il faut bien entendu installer le nécessaire.
+Vous disposez très vraisemblablement déjà de `gnupg`, mais sans doute
+pas de `gnupg-agent` ni même de `pinentry`.
+
+~~~~{.bash style="bash"}
+$ aptitude install gnupg gnupg-agent pinentry-curses
+~~~~~~~~~~
+
+## Configuration
+
+Le package gnupg-agent est fourni avec un script de session adapté aux
+environnements graphiques. Comme il est bien entendu hors de question
+d'utiliser une interface graphique sur un serveur, nous allons faire en
+sorte que l'agent démarre lors de la connexion SSH.
+
+Le fichier `.bash_profile` situé dans le répertoire personnel de
+l'utilisateur est chargé lors de la connexion SSH.
+
+~~~~{style="config" title=".bash\_profile"}
+if [ -f "${HOME}/.gpg-agent-info" ]; then
+	. "${HOME}/.gpg-agent-info"
+	export GPG_AGENT_INFO
+else
+	gpg-agent --daemon --write-env-file "${HOME}/.gpg-agent-info"
+	. "${HOME}/.gpg-agent-info"
+fi
+export GPG_TTY=`tty`
+. ~/.bashrc
+~~~~~~~~~~
+
+Il vérifie la présence d'un fichier .gpg-agent-info dans ce même
+répertoire. Si celui-ci est présent, il est chargé également et son
+contenu exporté comme variable d'environnement.
+
+Dans le cas contraire, on suppose que `gpg-agent` n'est pas démarré.
+Dans ce cas, il va être lancé avec différentes options, ici `--daemon`
+pour passer en arrière-plan et ne pas bloquer la session, ainsi que
+`--write-env-file` pour écrire dans le fichier `.gpg-agent-info` les
+informations nécessaires à l'utilisation de `gpg-agent`.
+
+Enfin, on exporte la variable `GPG_TTY` qui indique quel terminal est
+utilisé pour communiquer avec `gpg-agent`.
+
+C'est tout pour `gpg-agent`. La dernière ligne du fichier
+`~/.bash_profile` n'est là que pour continuer le chargement d'un
+éventuel `.bashrc`. C'est très utile dans le cas où vous y avez déjà une
+configuration fonctionnelle de votre shell.
+
+## Utilisation avec reprepro
+
+`gnupg-agent` est configuré mais pas encore démarré. Vous avez donc 2
+possibilités:
+
+- fermer la session active et vous reconnecter
+- charger le fichier `~/.bash_profile` dans la session courante
+
+Appliquons la seconde solution
+
+~~~~{.bash style="bash"}
+$ . ~/.bash_profile
+  GPG_AGENT_INFO=/tmp/gpg-ohwoPt/S.gpg-agent:20493:1; \
+                 export GPG_AGENT_INFO;
+~~~~~~~~~~
+
+`gpg-agent` est donc démarré. Vérifions avec `reprepro`
+
+~~~~{.bash style="bash"}
+$ reprepro export
+  Exporting lucid...
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+  Exporting precise...
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+~~~~~~~~~~
+
+Et... Ça ne fonctionne pas ! Il s'agit en réalité du comportement
+normal de `reprepro` puisque nous lui avons spécifié de demander la
+phrase de passe dans le fichier `conf/options`.
+
+Il faut donc modifier ce comportement en commentant ou en supprimant la
+ligne `ask-passphrase`.
+
+~~~~{.config style="config" title="conf/options"}
+verbose
+basedir /mnt/repository
+outdir /mnt/repository/www
+morguedir /mnt/repository/www.rollback
+~~~~~~~~~~
+
+Relancez ensuite la commande `reprepro export` et, cette fois, vous
+devriez voir la demande de phrase de passe faite via `pinentry`.
+
+Si vous obtenez:
+
+~~~~{.bash style="bash"}
+$ reprepro export
+  Exporting lucid...
+  gpgme gave error GPGME:11:  Bad passphrase
+  ERROR: Could not finish exporting 'lucid'!
+  There have been errors!
+~~~~~~~~~~
+
+C'est que quelque chose s'est mal passé. En général, cela signifie que
+`gpg-agent` n'est pas démarré et que le fichier `~/.gpg-agent-info`
+existe. Les variables d'environnement sont donc initialisées avec des
+valeurs erronées. Il est trivial de corriger cela:
+
+~~~~{.bash style="bash"}
+$ killall gpg-agent
+  gpg-agent: no process found
+$ rm ~/.gpg-agent-info 
+$ . ~/.bash_profile
+  GPG_AGENT_INFO=/tmp/gpg-ohwoPt/S.gpg-agent:20493:1; \
+                 export GPG_AGENT_INFO;
+~~~~~~~~~~

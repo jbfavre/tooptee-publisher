@@ -1,0 +1,271 @@
+# reprepro, l'archiviste
+
+Le dépôt de paquet géré par `reprepro` va constituer l'élément pivot de
+notre système.
+En effet:
+
+- c'est dans le dépôt que le responsable d'un paquet va intégrer
+une nouvelle version d'un paquet source.
+- c'est dans le dépôt que la tâche de génération du paquet binaire
+viendra chercher le paquet source et les éventuelles dépendances
+nécessaires
+- c'est toujours dans le dépôt que les paquets binaires nouvellement
+générés seront intégrés
+- c'est enfin dans ce dépôt que l'administrateur trouvera les mises à
+jour à appliquer sur le parc informatique.
+
+## Installation
+L'installation de reprepro est des plus classique:
+
+~~~~{.bash style="bash"}
+$ aptitude install reprepro
+~~~~~~~~~~
+
+Nous allons installer le dépôt dans `/mnt/repository/`. Le dépôt sera
+géré par l'utilisateur `admin`. Ici, l'utilisateur `admin` a été créé
+lors de l'installation et porte l'uid 1001.
+
+Comme nous faisons les choses bien, les fichiers release du futur dépôt
+seront signés à l'aide d'une clef GPG que nous créerons pour l'occasion.
+Bien entendu, vous pouvez également utiliser une clef déjà existante.
+
+Il est nécessaire de créer l'arborescence requise:
+
+~~~~{.bash style="bash"}
+$ mkdir -p /mnt/repository/{conf,db,incoming,logs,www}
+~~~~~~~~~~
+
+Pour obtenir:
+
+~~~~{.bash style="bash"}
+$ tree -d /mnt/repository/
+  /mnt/repository/
+  |-- conf
+  |-- db
+  |-- incoming
+  |-- logs
+  |-- tmp
+  `-- www
+~~~~~~~~~~
+
+Le dépôt devant être géré par l'utilisateur `admin`, il faut également
+mettre en place les permissions du système de fichier
+
+~~~~{.bash style="bash"}
+$ chown -R admin: /mnt/repository/
+~~~~~~~~~~
+
+Enfin, il faut créer la clef `gpg` qui sera utilisée pour la signature
+des fichiers du dépôt.
+
+~~~~{.bash style="bash"}
+$ gpg --gen-key
+~~~~~~~~~~
+
+Il est maintenant temps de configurer `reprepro` lui-même.
+
+## Configuration
+La configuration de reprepro s'effectue au travers de différents
+fichiers, tous situés dans le répertoire `conf` situé à la racine du
+dépôt. Dans notre cas, la racine est `/mnt/repository` et sera
+considérée comme implicite dans la suite du document.
+
+Intéressons-nous tout d'abord aux options globales de `reprepro`
+
+~~~~{.config style="config" title="conf/options"}
+verbose
+ask-passphrase
+basedir /mnt/repository
+outdir /mnt/repository/www
+morguedir /mnt/repository/www.rollback
+~~~~~~~~~~
+
+Signification des principaux champs:
+
+- `verbose`: 
+- `ask-passphrase`: 
+- `basedir`: 
+- `outdir`: 
+- `morguedir`: 
+
+Ensuite, il faut déclarer la liste des distributions supportées, ainsi
+que leurs caractéristiques. Le fichier `conf/distributions` est partagé
+en blocs, chacun des blocs définissant une distribution supportée et
+reconnue par `reprepro`.
+
+~~~~{style="config" title="conf/distributions"}
+Codename: lucid
+Suite: lucid
+Version: 10.04
+Origin: tooptee
+Architectures: i386 amd64 source
+Components: main experimental
+Description: My beautiful repository for Ubuntu 10.04 Lucid
+Uploaders: uploaders
+SignWith: GPGID
+DebIndices: Packages Release . .gz .bz2
+DscIndices: Sources Release .gz .bz2
+Tracking: all includechanges keepsources
+Log: logfile
+
+Codename: precise
+Suite: precise
+Version: 12.04
+Origin: tooptee
+Architectures: i386 amd64 source
+Components: main experimental
+Description: My beautiful repository for Ubuntu 12.04 Precise
+Uploaders: uploaders
+SignWith: GPGID
+DebIndices: Packages Release . .gz .bz2
+DscIndices: Sources Release .gz .bz2
+Tracking: all includechanges keepsources
+Log: logfile
+~~~~~~~~~~
+
+Signification des principaux champs:
+
+- `Codename`: le nom de la distribution. Par exemple `lucid` ou
+  `precise` pour Ubuntu, ou encore `squeeze` ou `wheezy` pour Debian
+- `Suite`: l'alias de la distribution. À ma connaissance, il n'est
+  utilisé que chez Debian avec `stable`, `testing` et `unstable`
+- `Version`: comme son nom l'indique, il contient le numéro de version
+  de la distribution. Par exemple 6.0.7 pour l'actuelle Debian stable,
+  ou encore 10.04 pour Ubuntu Lucid ou 12.04 pour Precise
+- `Origin`: en règle générale, on indique ici le nom du dépôt. Ce champ
+  permet par la suite de filtrer les paquets pour, par exemple, définir
+  les préférences apt
+- `Architectures`: liste les archtectures prises en compte par le dépôt.
+  Dans le cas présent `Source` est une architecture valide et nécessaire
+  pour gérer les paquets sources. S'il est absent, vous ne pourrez pas
+  ajouter de paquets source au dépôt !
+- `Components`: chez Debian, il s'agit de `main`, `contrib` et
+  `non-free`. Chez Ubuntu, nous aurons `main`, `universe` ou encore
+  `multiverse`
+- `Description`: texte libre
+- `Uploaders`: indique le fichier qui contiendra la liste des
+  autorisations d'ajout au dépôt.
+- `SignWith`: contient l'ID GPG de la clef qui sera utilisée pour signer
+  le dépôt
+- `Logs`: indique le fichier dans lequel les opérations seront
+  consignées. 
+
+Vous devez remplacer `GPGID` par l'ID de la clef créée au dessus.
+
+En l'état, `reprepro` est utilisable.
+
+## Initialisation
+
+Le dépôt est maintenant configuré, il est donc temps de l'initialiser
+
+~~~~{.bash style="bash"}
+$ reprepro export
+  Exporting lucid...
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+  Exporting precise...
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+  XXXX Jean Baptiste Favre <...@...> needs a passphrase
+  Please enter passphrase:
+~~~~~~~~~~
+
+`reprepro`, qui gère 2 distributions (`lucid` et `precise`) me demande 4
+fois de dévérouiller la clef GPG utilisée pour signer le dépôt.
+En effet, pour chacune des distributions supportées, il est nécessaire
+de signer 2 fichiers: `Release` et `Packages`.
+
+Plus la phrase de passe est complexe, plus cette manipulation sera
+contraignante. L'idéal serait de pouvoir mémoriser le dévérouillage de
+la clef pendant un temps donné.
+
+Ça tombe bien, il existe un outil pour cela. Il s'agit de `gpg-agent`
+que nous aborderons dans le prochain chapitre.
+
+## Principales commandes
+
+En attendant, voici quelques commandes qui permettent de gérer notre
+dépôt. Ces commandes n'ont pas besoin d'être exécutées en tant que
+`root`. Vous pouvez les exécuter en tant qu'`admin`.
+
+Lister les paquets d'une distribution
+
+~~~~{.bash style="bash"}
+$ reprepro -V -b /mnt/repository list precise
+~~~~~~~~~~
+
+Ajouter un paquet source
+
+~~~~{.bash style="bash"}
+$ reprepro -V -b /mnt/repository include precise \
+           /home/admin/package_version_source.changes
+~~~~~~~~~~
+
+Ajouter un paquet binaire
+
+~~~~{.bash style="bash"}
+$ reprepro -V -b /mnt/repository include precise \
+           /home/admin/package_version_amd64.changes
+~~~~~~~~~~
+
+Ajouter un paquet .deb
+
+~~~~{.bash style="bash"}
+$ reprepro -V -b /mnt/repository includedeb precise \
+           /home/admin/package_version_amd64.deb
+~~~~~~~~~~
+
+Traiter le contenu du répertoire incoming/sources (ici, le dernier
+argument de la commande désigne le champ `Name` du fichier
+`conf/incoming`)
+
+~~~~{.bash style="bash"}
+$ reprepro -V -b /mnt/repository processincoming sources
+~~~~~~~~~~
+
+## Configuration avancée
+
+Ceci fait, il faut maintenant indiquer à `reprepro` où il trouvera les
+paquets entrants.
+
+~~~~{style="config" title="conf/incoming"}
+Name: sources
+IncomingDir: incoming/sources
+Allow: lucid precise
+Cleanup: on_deny on_error
+Tempdir: /tmp
+
+Name: binaries
+IncomingDir: incoming/binaries
+Allow: lucid precise
+Cleanup: on_deny on_error
+Tempdir: /tmp
+~~~~~~~~~~
+
+Signification des différents champs:
+
+- `Name`
+- `IncomingDir`
+- `Allow`
+- `Cleanup`
+- `TempDir`
+
+L'idée est donc de pousser les paquets source entrants dans
+`/mnt/incoming/sources` puis d'invoquer `reprepro` en lui
+demandant de traiter son contenu.
+
+De la même manière, les paquets binaires seront déplacés dans
+`/mnt/incoming/binaries` puis ajoutés au dépôt via un appel
+à une commande `reprepro`.
+
+~~~~{.config style="config" title="conf/uploaders"}
+# allow source package upload, only if
+# signed by key CF7D8737
+allow source '*' by key CF7D8737
+
+# allow unsigned binaries packages upload
+allow binaries '*' by unsigned
+~~~~~~~~~~
+

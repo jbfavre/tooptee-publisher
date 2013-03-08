@@ -1,0 +1,255 @@
+# pbuilder & cowbuilder, les travailleurs de force
+
+Il est temps de rentrer dans le vif du sujet. En l'occurence, une fois que
+nous avons notre paquet source, il faut bien se préoccuper de le compiler et
+de générer la version binaire.
+
+Pour générer des paquets `Debian`, il existe bien la technique
+"je fais tout à la main pour avoir un maximum de contrôle", mais elle est
+un poil suboptimale. Le principe que nous allons mettre en pratique est
+simple: toutes les tâches répétitives qui ne nécessitent pas de réelle
+réflexion doivent être automatisées.
+
+Les étapes de compilation et de génération de paquets en font partie.
+
+Pour cela, nous allons utiliser `pbuilder`. Celui-ci permet de mettre en
+place, maintenir et utiliser des `chroot` très simplement. Seule ombre au
+tableau, il va générer le `chroot` from scratch à chaque construction de paquet.
+
+Heureusement, il est possible d'utiliser un outil utilisant le
+"Copy On Write" pour accélérer la mise en place du `chroot`.
+
+Il s'agit de `cowbuilder`.
+
+## Installation
+
+Par défaut, `cowbuilder` n'est que suggéré par le gestionnaire de paquets.
+Afin d'être sûr de l'avoir, autant spécifier son installation.
+
+~~~~{.bash style="bash"}
+$ aptitude install pbuilder cowbuilder
+~~~~~~~~~~
+
+Les outils sont installés, il faut préparer l'arborescence sur le disque
+dur pour accueillir les `chroot`.
+
+`cowbuilder` aura besoin d'un certain nombre de répertoires:
+
+- `aptcache`: répertoire dans lequel les paquets nécessaires au `chroot` ainsi
+que ceux nécessaires à la compilation des paquets sources seront stockés
+- `build`: répertoire dans lequel les `chroot` temporaires seront créés, le
+temps de la génération d'un paquet binaire
+- `deb`: accueillera les paquets binaires générés par `cowbuilder`
+- `fscow`: répertoire référence du `chroot` de la distribution dans
+l'architecture voulue.
+
+Si l'on souhaite générer des paquets pour Debian Squeeze, pour les
+architectures amd64 & i386, il faut créer les répertoires suivants:
+
+~~~~{.bash style="bash"}
+$ mkdir -p /mnt/builder
+$ mkdir -p /mnt/builder/squeeze_amd64/{aptcache,build,deb,fscow}
+$ mkdir -p /mnt/builder/squeeze_i386/{aptcache,build,deb,fscow}
+~~~~~~~~~~
+
+De plus, `pbuilder` aura besoin d'autres répertoires pour ses besoins
+internes
+
+~~~~{.bash style="bash"}
+mkdir -p /mnt/pbuilder/hook.d
+~~~~~~~~~~
+
+## Configuration
+
+La configuration nécessaire à `cowbuilder` peut être réalisée à différents
+endroits:
+
+- `/etc/pbuilderrc`
+- `~/.pbuilderrc`
+
+Ceci permet, par exemple, de fixer les options communes dans
+`/etc/pbuilderrc` tout en laissant un peu de liberté aux responsables
+de paquets. Ici, je pars du principe que toutes les options sont fixées
+globalement.
+
+~~~~{.config style="config" title="/etc/pbuilderrc"}
+DEBBUILDOPTS=(
+    '-r' 'fakeroot'
+    )
+
+# List of supported Debian suites.
+DEBIAN_SUITES=('squeeze' 'wheezy')
+# List of supported Ubuntu suites.
+UBUNTU_SUITES=('lucid' 'precise')
+
+# Main directories
+BASEPATH=/mnt/${DISTRIBUTION}_${ARCHITECTURE}/fscow
+BUILDPLACE=/mnt/${DISTRIBUTION}_${ARCHITECTURE}/build
+BUILDRESULT=/mnt/${DISTRIBUTION}_${ARCHITECTURE}/deb
+APTCACHE=/mnt/${DISTRIBUTION}_${ARCHITECTURE}/aptcache
+
+# If not defined, use distribution & architecture from local host
+: ${DISTRIBUTION:=$(lsb_release --short --codename)}
+: ${ARCHITECTURE:=$(dpkg --print-architecture)}
+
+DEBOOTSTRAPOPTS=(
+    '--variant' 'buildd'
+    )
+
+if $(echo ${DEBIAN_SUITES[@]} | grep -q ${DISTRIBUTION}); then
+# Debian configuration
+
+    MIRRORSITE=http://ftp.fr.debian.org/debian
+    COMPONENTS='main contrib non-free'
+    DEBOOTSTRAPOPTS=(
+    	"${DEBOOTSTRAPOPTS[@]}"
+	    '--keyring' '/usr/share/keyrings/debian-archive-keyring.gpg'
+    	)
+    # Next line is displayed on multiple lines.
+    # In real config file, you MUST delete line feeds and keep
+    # OTHERMIRROR content on 1 line only
+    OTHERMIRROR="deb http://security.debian.org/ ${DISTRIBUTION}/updates ${COMPONENTS}|deb file:///mnt/repository/www ${DISTRIBUTION} ${COMPONENTS}"
+
+elif $(echo ${UBUNTU_SUITES[@]} | grep -q ${DISTRIBUTION}); then
+# Ubuntu configuration
+
+    MIRRORSITE=http://fr.archive.ubuntu.com/ubuntu
+    COMPONENTS='main restricted universe multiverse'
+    DEBOOTSTRAPOPTS=(
+    	"${DEBOOTSTRAPOPTS[@]}"
+	    '--keyring' '/usr/share/keyrings/ubuntu-archive-keyring.gpg'
+    )
+    # Next line is displayed on multiple lines.
+    # In real config file, you MUST delete line feeds and keep
+    # OTHERMIRROR content on 1 line only
+    OTHERMIRROR="deb http://security.ubuntu.com/ubuntu/ ${DISTRIBUTION}-security ${COMPONENTS}|deb file:///mnt/repository/www ${DISTRIBUTION} ${COMPONENTS}"
+
+else
+# Fallback
+
+    echo "Unsupported distribution: ${DISTRIBUTION}"
+    exit 1
+
+fi
+
+# Bindmount /proc
+USEPROC=yes
+# Bindmount  /dev/pts
+USEDEVPTS=yes
+# Bindmount  /dev
+USEDEVFS=no
+
+# Also bind mount our repository root dir
+BINDMOUNTS='/mnt/repository/www'
+
+# Hook directory for pbuilder
+HOOKDIR='/mnt/pbuilder/hook.d'
+
+# make debconf not interact with user
+export DEBIAN_FRONTEND="noninteractive"
+
+# the username and ID used by pbuilder, inside chroot.
+# Oh, and you need fakeroot, really
+BUILDUSERID=1001
+BUILDUSERNAME=admin
+~~~~~~~~~~
+
+Il faut ensuite créer le `chroot`. Pour cela, on exécute `cowbuilder` avec
+les options qui précisent la distribution et l'architecture souhaitées:
+
+~~~~{.bash style="bash"}
+$ DISTRIBUTION=squeeze \
+  ARCHITECTURE=amd64 \
+      /usr/sbin/cowbuilder create
+~~~~~~~~~~
+
+Cette commande va installer un système GNU/Linux Debian `Squeeze` architecture
+`amd64` à l'aide de `debootstrap`. Bien entendu, vous devrez répéter cette
+commande pour chacune des distributions et chacune des architectures que vous
+voulez supporter.
+
+## Utilisation
+
+Une fois le paquet source intégré dans le dépôt, vous pourrez lancer la
+génération du paquet binaire.
+
+Mais, auparavant, pensez à mettre à jour le `chroot` des derniers correctifs
+de sécurité et autres mises à jour:
+
+~~~~{.bash style="bash"}
+$ DISTRIBUTION=squeeze \
+  ARCHITECTURE=amd64 \
+      /usr/sbin/cowbuilder --update
+~~~~~~~~~~
+
+Vous n'avez pas besoin de faire cette mise à jour avant chaque génération de
+paquet binaire. Faites le au début de chaque session de travail, cela suffit.
+
+Lorsque le chroot est à jour, vous pouvez lancer la compilation à partir du
+paquet source:
+
+~~~~{.bash style="bash"}
+$ DISTRIBUTION=squeeze \
+  ARCHITECTURE=amd64 \
+      /usr/sbin/cowbuilder \
+          --build --debbuildopts "-b" \${PACKAGE}_\${VERSION}.dsc
+
+$ DISTRIBUTION=squeeze \
+  ARCHITECTURE=i386 \
+      /usr/sbin/cowbuilder \
+          --build --debbuildopts "-B" \${PACKAGE}_\${VERSION}.dsc
+~~~~~~~~~~
+
+Que ce passe-t-il lors de l'exécution de cowbuilder ?
+
+1. `cowbuilder` va créer un `chroot` dédié à l'aide de liens "durs" et non pas
+en copiant les fichier du `chroot` d'origine. Le `chroot` est situé dans le
+répertoire `/mnt/pbuilder/squeeze_amd64/build/cow.XXXX` ou "XXXX" correspond
+au numéro de processus de `cowbuilder`
+2. `cowbuilder` va ensuite récupérer le paquet source et le copier dans le
+répertoire `/tmp/buildd` du `chroot` temporaire
+3. Au sein même du `chroot`, `cowbuilder` va finalement lancer la compilation et
+la génération du paquet binaire
+4. Une fois la compilation terminée et le(s) paquet(s) binaire(s) généré(s),
+ces derniers seront copiés dans `/mnt/pbuilder/squeeze_amd64/deb`
+
+Vous aurez remarqué une option qui diffère selon que l'on construit le paquet
+pour l'architecture `amd64` ou `i386`: `--debbuildopts "-b"` ou `--debbuildopts
+"-B"`. C'est tout à fait normal et voici pourquoi:
+avec '`-b`', les paquets seront générés pour toutes les architectures (ce qui
+ne signifie pas `amd64` & `i386`, mais dans ce cas précis, `amd64` & `all`).
+Avec '`-B`', on ne génèrera pas les paquets pour l'architecture `all`.
+
+Cette (petite) différence va nous permettre de contourner une limitation de
+`reprepro` qui ne peut intégrer de paquets dont les nom, version et
+architecture sont identiques, mais dont le checksum est différent ce qui, 
+finalement, s'avère tout à fait censé et logique.
+
+Or, un paquet `<package>_<version>_all.deb` construit, à partir du même paquet
+source, sur une machine `amd64` n'aura pas la même somme de contrôle que le
+même paquet construit sur une machine `i386`.
+
+Voilà pourquoi il ne faut construire les paquets en architecture `all`
+qu'une seule fois.
+
+## Intégration avec reprepro
+
+Si tout s'est passé correctement, le(s) paquet(s) résultant de l'opération
+sont disponibles dans `/mnt/pbuilder/squeeze_amd64/deb/`.
+
+Entre autres fichiers, vous trouverez `<package>_<version>_amd64.changes`.
+
+C'est ce fichier que nous allons utiliser pour intégrer le(s) paquet(s) dans
+`reprepro`. Pour cela, une commande que nous avons aperçu au chapitre
+précédent:
+
+~~~~{.bash style="bash"}
+$ reprepro -V -b /mnt/repository include <DISTRIBUTION> \
+           /home/admin/<PACKAGE>_<VERSION>_<ARCHITECTURE>.changes
+~~~~~~~~~~
+
+Renseignez la phrase de passe de la cle `gpg` si `gpg-agent` ne l'a pas
+déjà ou plus en cache.
+
+Vous pouvez vérifier que le paquet binaire est bien présent avec la
+commande `reprepro list <DISTRIBUTION>`
