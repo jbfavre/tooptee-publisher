@@ -1,1 +1,168 @@
-# dput, le coursier
+# dput, le coursier {#dput}
+
+Jusqu'à présent, nous avons directement utilisé `reprepro` pour réaliser
+les différentes opérations de gestion des aquets dans le dépôt.
+Cela fonctionne, mais il y a quand même un souci: lorsque vous ne vous
+trouvez pas à la racine du dépôt `reprepro`, vous devez alors spécifier
+l'option `-b /mnt/repository` à chaque appel.
+
+Or, la plupart du temps, et notamment lorsque vous manipulez des paquets
+sources, vous ne serez pas dans la racine du dépôt. Ce cas de figure sera
+même systématique si vous générez le paquet source sur une autre machine
+que celle qui héberge le dépôt.
+
+Il est toutefois possible, là encore, d'utiliser un outil qui nous
+simplifiera la vie: `dput`.
+
+## Installation
+
+Comme toujours sous Debian, l'installation est terriblement complexe:
+
+~~~~{.bash style="bash"}
+$ aptitude install dput
+~~~~~~~~~~
+
+## Configuration
+
+`dput` supporte différentes manière de télécharger les paquets vers un
+dépôt. Ici, nous n'en utiliserons qu'une: la copie vers un répertoire
+local. Ceci suppose donc que vous générez les paquets sources sur la
+machine qui héberge le dépôt.
+
+Le fichier de configuration de l'utilitaire `dput` se trouve dans le
+répertoire utilisateur, ici `admin`:
+
+~~~~{style="config" title="~/.dput.cfg"}
+[DEFAULT]
+default_host_main = notspecified
+
+[sources]
+fqdn = localhost
+method = local
+incoming = /mnt/repository/incoming/sources
+allow_unsigned_uploads = 0
+run_dinstall = 0
+# Next line is displayed on multiple lines.
+# In real config file, you MUST delete line feeds and keep
+# its content on 1 line only
+post_upload_command = reprepro -V -b /mnt/repository processincoming sources && sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/reprepro.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
+~~~~~~~~~~
+
+Le téléchargement de paquets source devient extrêmement simple et se
+résume à cette simple commande:
+
+~~~~{.bash style="bash"}
+dput sources <paquet>_<version>_source.changes
+~~~~~~~~~~
+
+À l'exécution de la commande, `dput` va charger le bloc de configuration
+`sources` de son fichier de configuration. Il déterminera ainsi la
+méthode de téléchargement du paquet, ici `local`, ainsi que la destination,
+`/mnt/repository/incoming/sources`.
+
+Avant de réaliser l'opération de copie, il va également vérifier la
+signature `gpg` puisque l'option `allow_unsigned_uploads` interdit le
+téléchargement de paquets source non signés.
+
+Enfin, une fois le paquet source téléchargé, `dput` se chargera d'exécuter
+la commande spécifiée dans l'option `post_upload_command`.
+
+Dans notre cas, `dput` va invoquer `reprepro` pour traiter le répertoire
+incoming sources ce qui aura pour effet de réellement inclure le paquet
+source dans le dépôt. La commande sera détaillée dans quelques instants.
+
+Pour finir, `dput` exécutera la commande `apt-get update` avec les
+arguments nécessaires pour limiter son action à notre dépôt. Cela
+évitera de recharger trop souvent la liste des paquets des dépôts distants.
+Ceux-ci n'évoluent vraisemblablement pas plusieurs fois par jour, il est
+inutile de les surcharger. Le deuxième avantage de cette mise à jour partielle
+est qu'il s'agit d'une opération extrêmement rapide puisque le dépôt est
+local.
+
+Naturellement, il faut également ajouter notre dépôt dans les sources `apt`:
+
+~~~~{style="config" title="/etc/apt/sources.list.d/reprepro.list"}
+deb-src file:///mnt/repository/www lucid main experimental
+deb-src file:///mnt/repository/www precise main experimental
+~~~~~~~~~~
+
+Nous n'indiquons ici que les sources. En effet, ce dépôt ne sera utilisé
+que pour mettre le paquet source à disposition de cowbuilder.
+Cette opération s'effectuant en dehors du `chroot` de compilation, il est
+nécessaire de rendre le dépôt source accessible depuis la machine elle-même.
+
+## Intégration avec reprepro
+
+Avant de pouvoir utiliser cette nouvelle brique, nous avons quelques
+opérations de configuration à réaliser du côté de `reprepro`.
+D'abord, il faut créer le répertoire incoming:
+
+~~~~{.bash style="bash"}
+$ mkdir -p /mnt/repository/incoming/sources
+~~~~~~~~~~
+
+Ceci fait, il faut maintenant indiquer à `reprepro` où il trouvera les
+paquets entrants.
+
+~~~~{style="config" title="conf/incoming"}
+Name: sources
+IncomingDir: incoming/sources
+Allow: lucid precise
+Cleanup: on_deny on_error
+Tempdir: /tmp
+~~~~~~~~~~
+
+Signification des différents champs:
+
+- `Name`
+- `IncomingDir`
+- `Allow`
+- `Cleanup`
+- `TempDir`
+
+Revenons à la configuration de `dput`, et plus exactement à la ligne
+`post_upload_command`.
+
+La première partie de la commande demande tout simplement à `reprepro`
+de traiter le répertoire incoming (`processincoming`) dont le nom est
+`sources`.
+
+`reprepro` va donc récupérer tous les fichiers `*.changes` présents
+dans le répertoire `incoming/sources` pour les analyser et inclure
+les fichiers qui y sont référencés dans le dépôt.
+Seules les distributions `lucid`, `precise` seront prises en compte,
+comme indiqué par la directive `Allow`.
+
+Enfin, dans la mesure où `dput` ne téléchargera que des paquets source
+signés, nous pouvons également demander à `reprepro` de limiter les
+téléchargements à certaines clefs:
+
+~~~~{.config style="config" title="conf/uploaders"}
+allow source '*' by key CF7D8737
+~~~~~~~~~~
+
+Cette limitation est globale à `reprepro`, mais ne s'applique nulle part.
+Pour l'appliquer, il faut modifier la définitions des distributions:
+
+~~~~{style="config" title="conf/distributions"}
+Codename: lucid
+Suite: lucid
+Version: 10.04
+Origin: tooptee
+Architectures: i386 amd64 source
+Components: main experimental
+Description: My beautiful repository for Ubuntu 10.04 Lucid
+Uploaders: uploaders
+SignWith: GPGID
+DebIndices: Packages Release . .gz .bz2
+DscIndices: Sources Release .gz .bz2
+Tracking: all includechanges keepsources
+Log: logfile
+~~~~~~~~~~
+
+## En résumé
+
+Nous avons vu comment automatiser le téléchargement des paquets souces
+vers le dépôt à l'aide de `dput`. Nous reviendrons sur cet outil dans le
+chapitre suivant puisque le même mécanisme sera utilisé par `rebuildd`
+pour télécharger les paquets binaires vers le dépôt.
