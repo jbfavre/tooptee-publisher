@@ -1,26 +1,25 @@
 <!DOCTYPE html>
-<html$if(lang)$ lang="$lang$"$endif$>
+<html lang="$Lang$">
 <head>
   <meta charset="utf-8">
-  <meta name="generator" content="pandoc">
-$for(author-meta)$
-  <meta name="author" content="$author-meta$">
+  <title>$if(title-prefix)$$title-prefix$ - $endif$$Title$</title>
+$for(Author)$
+  <meta name="author" content="$Author$">
 $endfor$
-$if(date-meta)$
-  <meta name="dcterms.date" content="$date-meta$">
+  <meta name="generator" content="Tooptee Publisher">
+$if(Tags)$
+  <meta name="keywords" content="$for(Tags)$$Tags$$sep$,$endfor$">
 $endif$
-  <title>$if(title-prefix)$$title-prefix$ - $endif$$pagetitle$</title>
+  <meta name="description" content="$Summary$">
+$if(Date)$
+  <meta name="date" content="$Date$">
+$endif$
   <style type="text/css">code{white-space: pre;}</style>
   <!--[if lt IE 9]>
     <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
   <![endif]-->
 $if(quotes)$
   <style type="text/css">q { quotes: "“" "”" "‘" "’"; }</style>
-$endif$
-$if(highlighting-css)$
-  <style type="text/css">
-$highlighting-css$
-  </style>
 $endif$
 $for(css)$
   <link rel="stylesheet" href="$css$">
@@ -36,14 +35,14 @@ $endfor$
 $for(include-before)$
 $include-before$
 $endfor$
-$if(title)$
+$if(Title)$
 <header>
-<h1 class="title">$title$</h1>
-$for(author)$
-<h2 class="author">$author$</h2>
+<h1 class="title">$Title$</h1>
+$for(Author)$
+<h2 class="author">$Author$</h2>
 $endfor$
-$if(date)$
-<h3 class="date">$date$</h3>
+$if(Date)$
+<h3 class="date">$Date$</h3>
 $endif$
 </header>
 $endif$
@@ -52,7 +51,9 @@ $if(toc)$
 $toc$
 </nav>
 $endif$
+<article>
 $body$
+</article>
 $for(include-after)$
 $include-after$
 $endfor$

@@ -1,4 +1,4 @@
-\documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$lang$,$endif$$if(papersize)$$papersize$,$endif$]{$documentclass$}
+\documentclass[$if(fontsize)$$fontsize$,$endif$$if(Language)$$Language$,$endif$$if(papersize)$$papersize$,$endif$]{$documentclass$}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{amssymb,amsmath}
@@ -49,6 +49,7 @@ $endif$
 $endif$
 $if(listings)$
 \usepackage{listings}
+$endif$
 
 %-----------------------------------------------------------------------
 % tpt_publisher
@@ -57,14 +58,7 @@ $if(listings)$
 \usepackage{color}
 $if(print)$
 \usepackage{fancyhdr}
-$endif$
-%Define used color
-\definecolor{tpted_red}{RGB}{159,17,27}
-\definecolor{tpted_blue}{RGB}{36,84,118}
-\definecolor{tpted_gray}{gray}{0.4}
-\definecolor{tpted_gray_light}{gray}{0.7}
 
-$if(print)$
 % Make sure to have a blank page between chapter
 \let\origdoublepage\cleardoublepage
 \newcommand{\clearemptydoublepage}{%
@@ -94,9 +88,9 @@ $if(print)$
 {\color{tpted_red}\rule{2pt}{\textheight}}%
 \hspace*{0.05\textwidth}%
 \parbox[b]{0.85\textwidth}{%
-{\Huge\color{tpted_blue}\noindent\bfseries $title$}\\[6\baselineskip]%
-{\Large\textsc{$author$}}\\[1\baselineskip]%
-{\large\textit{$date$}}%
+{\Huge\color{tpted_blue}\noindent\bfseries $Title$}\\[6\baselineskip]%
+{\Large\textsc{$Author$}}\\[1\baselineskip]%
+{\large\textit{$Date$}}%
 
 \vspace{0.5\textheight}%
 \raggedleft%
@@ -116,9 +110,14 @@ $if(print)$
     \vskip 40\p@%
   }}%
 \makeatother
-
 $endif$
-$if(listings)$
+
+%Define used color
+\definecolor{tpted_red}{RGB}{159,17,27}
+\definecolor{tpted_blue}{RGB}{36,84,118}
+\definecolor{tpted_gray}{gray}{0.4}
+\definecolor{tpted_gray_light}{gray}{0.7}
+
 % Listings redesign
 \usepackage{caption}
 \DeclareCaptionFormat{listing}{\parbox[bottom][0pt][c]{\textwidth}
@@ -143,12 +142,10 @@ belowskip=1.5\baselineskip}
   style=basic
 }
 \lstset{language=bash,style=bash}
-$endif$
 %-----------------------------------------------------------------------
 % tpt_publisher
 %-----------------------------------------------------------------------
 
-$endif$
 $if(lhs)$
 \lstnewenvironment{code}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
 $endif$
@@ -182,8 +179,12 @@ $endif$
 \fi
 \hypersetup{breaklinks=true,
             bookmarks=true,
-            pdfauthor={$author-meta$},
-            pdftitle={$title-meta$},
+            pdfauthor={$Author$},
+            pdfcreator={Tooptee Édition},
+            pdfproducer={Tooptee Publisher (http://publisher.tooptee.org/)},
+            pdftitle={$Title$},
+            pdfsubject={$Summary$},
+            pdfkeywords=$for(Tags)${$Tags$} $endfor$,
             colorlinks=true,
             urlcolor=$if(urlcolor)$$urlcolor$$else$blue$endif$,
             linkcolor=$if(linkcolor)$$linkcolor$$else$magenta$endif$,
@@ -201,44 +202,40 @@ $endif$
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt plus 2pt minus 1pt}
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
-$if(numbersections)$
-\setcounter{secnumdepth}{5}
-$else$
-\setcounter{secnumdepth}{0}
-$endif$
+\setcounter{secnumdepth}{$if(numbersections)$$numbersections$$else$0$endif$}
 $if(verbatim-in-note)$
 \VerbatimFootnotes % allows verbatim text in footnotes
 $endif$
-$if(lang)$
+$if(Language)$
 \ifxetex
   \usepackage{polyglossia}
   \setmainlanguage{$mainlang$}
 \else
-  \usepackage[$lang$]{babel}
+  \usepackage[$Language$]{babel}
 \fi
 $endif$
 $for(header-includes)$
 $header-includes$
 $endfor$
 
-$if(title)$
-\title{$title$}
+$if(Title)$
+\title{$Title$}
 $endif$
-\author{$for(author)$$author$$sep$ \and $endfor$}
-\date{$date$}
+\author{$for(Author)$$Author$$sep$ \and $endfor$}
+\date{$Date$}
 
 \begin{document}
-%-----------------------------------------------------------------------
-% tpt_publisher
-%-----------------------------------------------------------------------
 $if(print)$
-\frontmatter
-$endif$
 %-----------------------------------------------------------------------
 % tpt_publisher
 %-----------------------------------------------------------------------
+\frontmatter
+%-----------------------------------------------------------------------
+% tpt_publisher
+%-----------------------------------------------------------------------
+$endif$
 
-$if(title)$
+$if(Title)$
 \maketitle
 $endif$
 
@@ -249,23 +246,19 @@ $endfor$
 $if(toc)$
 {
 \hypersetup{linkcolor=black}
-$if(toc-depth)$
-\setcounter{tocdepth}{$toc-depth$}
-$else$
-\setcounter{tocdepth}{1}
-$endif$
+\setcounter{tocdepth}{$if(toc-depth)$$toc-depth$$else$1$endif$}
 \tableofcontents
 }
 $endif$
-%-----------------------------------------------------------------------
-% tpt_publisher
-%-----------------------------------------------------------------------
 $if(print)$
-\mainmatter
-$endif$
 %-----------------------------------------------------------------------
 % tpt_publisher
 %-----------------------------------------------------------------------
+\mainmatter
+%-----------------------------------------------------------------------
+% tpt_publisher
+%-----------------------------------------------------------------------
+$endif$
 
 $body$
 
