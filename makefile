@@ -76,7 +76,7 @@ tex_config= \
 		-o $(outputdir)/$(@) \
 		books/$(patsubst %.tex,%,$(@))/*.mkd
 
-%.epub:
+%-2.epub:
 	echo "EPUB generation... "
 	$(pandoc_bin) \
 		$(pandoc_config) \
@@ -86,9 +86,9 @@ tex_config= \
 		--epub-stylesheet=$(templates_dir)/epub.stylesheet.css \
 		--epub-metadata=$(templates_dir)/epub.metadata.fr.xml \
 		-o $(outputdir)/$(@) \
-		books/$(patsubst %.epub,%,$(@))/*.mkd
+		books/$(patsubst %-2.epub,%,$(@))/*.mkd
 
-%.epub3:
+%-3.epub:
 	echo "EPUB3 generation... "
 	$(pandoc_bin) \
 		$(pandoc_config) \
@@ -98,7 +98,7 @@ tex_config= \
 		--epub-stylesheet=$(templates_dir)/epub.stylesheet.css \
 		--epub-metadata=$(templates_dir)/epub.metadata.fr.xml \
 		-o $(outputdir)/$(@) \
-		books/$(patsubst %.epub3,%,$(@))/*.mkd
+		books/$(patsubst %-3.epub,%,$(@))/*.mkd
 
 %.html:
 	echo "HTML generation... "
@@ -113,7 +113,7 @@ tex_config= \
 %.pdf: | %-report.pdf %-a4book.pdf %-a5book.pdf
 	@true
 
-%.all: | %.tex %.pdf %.epub %.epub3 %.html
+%.all: | %.tex %.pdf %-2.epub %-3.epub %.html
 	@true
 
 %: | %.check %.all
