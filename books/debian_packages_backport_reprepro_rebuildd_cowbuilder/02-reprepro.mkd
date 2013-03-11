@@ -1,4 +1,4 @@
-# reprepro, l'archiviste
+# reprepro, l'archiviste {#reprepro}
 
 Le dépôt de paquet géré par `reprepro` va constituer l'élément pivot de
 notre système.
@@ -62,8 +62,6 @@ des fichiers du dépôt.
 $ gpg --gen-key
 ~~~~~~~~~~
 
-Il est maintenant temps de configurer `reprepro` lui-même.
-
 ## Configuration
 La configuration de reprepro s'effectue au travers de différents
 fichiers, tous situés dans le répertoire `conf` situé à la racine du
@@ -82,16 +80,20 @@ morguedir /mnt/repository/www.rollback
 
 Signification des principaux champs:
 
-- `verbose`: 
-- `ask-passphrase`: 
-- `basedir`: 
-- `outdir`: 
-- `morguedir`: 
+- `verbose`: indique à `reprepro` de nous dire au fur et à mesure ce qui
+est fait.
+- `ask-passphrase`: `reprepro` se chargera de demander la phrase de passe
+`gpg` à chaque signature.
+- `basedir`: répertoire racine du dépôt.
+- `outdir`: répertoire dans lequel les paquets seront accessibles. C'est
+ici que se situeront également les fichiers `Release` et `Packages`.
+- `morguedir`: répertoire dans lequel les paquets supprimés suite à une
+mise à jour seront sauvegardés.
 
 Ensuite, il faut déclarer la liste des distributions supportées, ainsi
 que leurs caractéristiques. Le fichier `conf/distributions` est partagé
 en blocs, chacun des blocs définissant une distribution supportée et
-reconnue par `reprepro`.
+reconnue par `reprepro`. Ici, un exemple pour Ubuntu 10.04 Lucid:
 
 ~~~~{style="config" title="conf/distributions"}
 Codename: lucid
@@ -99,23 +101,8 @@ Suite: lucid
 Version: 10.04
 Origin: tooptee
 Architectures: i386 amd64 source
-Components: main experimental
+Components: main
 Description: My beautiful repository for Ubuntu 10.04 Lucid
-Uploaders: uploaders
-SignWith: GPGID
-DebIndices: Packages Release . .gz .bz2
-DscIndices: Sources Release .gz .bz2
-Tracking: all includechanges keepsources
-Log: logfile
-
-Codename: precise
-Suite: precise
-Version: 12.04
-Origin: tooptee
-Architectures: i386 amd64 source
-Components: main experimental
-Description: My beautiful repository for Ubuntu 12.04 Precise
-Uploaders: uploaders
 SignWith: GPGID
 DebIndices: Packages Release . .gz .bz2
 DscIndices: Sources Release .gz .bz2
@@ -143,16 +130,12 @@ Signification des principaux champs:
   `non-free`. Chez Ubuntu, nous aurons `main`, `universe` ou encore
   `multiverse`
 - `Description`: texte libre
-- `Uploaders`: indique le fichier qui contiendra la liste des
-  autorisations d'ajout au dépôt.
 - `SignWith`: contient l'ID GPG de la clef qui sera utilisée pour signer
   le dépôt
 - `Logs`: indique le fichier dans lequel les opérations seront
   consignées. 
 
 Vous devez remplacer `GPGID` par l'ID de la clef créée au dessus.
-
-En l'état, `reprepro` est utilisable.
 
 ## Initialisation
 
@@ -225,47 +208,4 @@ argument de la commande désigne le champ `Name` du fichier
 $ reprepro -V -b /mnt/repository processincoming sources
 ~~~~~~~~~~
 
-## Configuration avancée
-
-Ceci fait, il faut maintenant indiquer à `reprepro` où il trouvera les
-paquets entrants.
-
-~~~~{style="config" title="conf/incoming"}
-Name: sources
-IncomingDir: incoming/sources
-Allow: lucid precise
-Cleanup: on_deny on_error
-Tempdir: /tmp
-
-Name: binaries
-IncomingDir: incoming/binaries
-Allow: lucid precise
-Cleanup: on_deny on_error
-Tempdir: /tmp
-~~~~~~~~~~
-
-Signification des différents champs:
-
-- `Name`
-- `IncomingDir`
-- `Allow`
-- `Cleanup`
-- `TempDir`
-
-L'idée est donc de pousser les paquets source entrants dans
-`/mnt/incoming/sources` puis d'invoquer `reprepro` en lui
-demandant de traiter son contenu.
-
-De la même manière, les paquets binaires seront déplacés dans
-`/mnt/incoming/binaries` puis ajoutés au dépôt via un appel
-à une commande `reprepro`.
-
-~~~~{.config style="config" title="conf/uploaders"}
-# allow source package upload, only if
-# signed by key CF7D8737
-allow source '*' by key CF7D8737
-
-# allow unsigned binaries packages upload
-allow binaries '*' by unsigned
-~~~~~~~~~~
-
+## En résumé
