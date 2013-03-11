@@ -1,69 +1,7 @@
-OUTPUTDIR=./output
-BOOKSLIST=$(wildcard ./books/*)
+VERSION=0.1
 
-# Default values for LaTeX & PDF output
-
-#fontsize
-#lang / mainlang
-#papersize
-#documentclass
-
-#euro
-#mainfont
-#sansfont
-#monofont
-#mathfont
-
-#geometry
-
-#natbib
-
-#biblatex
-#biblio-files
-
-#listings
-
-#lhs
-
-#highlighting-macros
-
-#verbatim-in-note
-
-#tables
-
-#graphics
-
-#author-meta
-#title-meta
-#urlcolor
-#linkcolor
-#links-as-notes
-
-#strikeout
-
-#numbersections
-
-#header-includes
-
-#title
-#author
-#date
-
-#include-before
-
-#toc
-#toc-depth
-
-#body
-
-#natbib
-#biblio-files
-#biblio-title
-#book-class
-
-#include-after
-
-
+pandoc_bin=/usr/bin/pandoc
+pdfbook_bin=/usr/bin/pdfbook
 
 fontsize=12pt
 lang=french
@@ -73,12 +11,19 @@ hmargin=3cm
 vmargin=3.5cm
 
 # Common options for pandoc's calls
-GLOBAL_CONFIG= \
+templates_dir=./templates
+outputdir=./output
+
+pandoc_config= \
+	$(pandoc_metadata) \
+	-V geometry:hmargin=3cm \
+	-V geometry:vmargin=3.5cm \
 	--listings \
 	--no-highlight
 
-TEX_CONFIG= \
-	--template=templates/default.latex \
+tex_config= \
+	$(pandoc_config) \
+	--template=$(templates_dir)/default.latex \
 	--variable fontsize=${fontsize} \
 	--variable lang=${lang} \
 	--variable geometry=${geometry} \
@@ -86,75 +31,77 @@ TEX_CONFIG= \
 	--variable hmargin=${hmargin} \
 	--variable vmargin=${vmargin}
 
-PANDOC_BIN=/usr/bin/pandoc
-PDFBOOK_BIN=/usr/bin/pdfbook
+
 
 %.check:
 	( test -d books/$(patsubst %.check,%,$(@)) && \
 		echo "Book $(patsubst %.check,%,$(@)) FOUND" ) || \
-		( echo "Book $(patsubst %.check,%,$(@)) NOT FOUND" && \
+	( echo "Book $(patsubst %.check,%,$(@)) NOT FOUND" && \
 		exit 1 )
+	$(eval pandoc_metadata=$(shell /usr/bin/awk -f utilities/metadata.awk books/$(patsubst %.check,%,$(@))/00-metadata.txt) )
 
 %-report.pdf:
 	echo "PDF  generation, readable  report... "
-	$(PANDOC_BIN) $(GLOBAL_CONFIG) \
-			$(TEX_CONFIG) \
-			--variable documentclass=report \
-			-o $(OUTPUTDIR)/$(@) \
-			books/$(patsubst %-report.pdf,%,$(@))/*.mkd
+	$(pandoc_bin) \
+		$(tex_config) \
+		--variable documentclass=report \
+		-o $(outputdir)/$(@) \
+		books/$(patsubst %-report.pdf,%,$(@))/*.mkd
 
 %-a4book.pdf:
 	echo "PDF  generation, printable a4 book... "
-	$(PANDOC_BIN) $(GLOBAL_CONFIG) \
-			--toc \
-			--variable toc-depth=2 \
-			$(TEX_CONFIG) \
-			--variable documentclass=book \
-			--variable print=true \
-			-o $(OUTPUTDIR)/$(@) \
-			books/$(patsubst %-a4book.pdf,%,$(@))/*.mkd
+	$(pandoc_bin) \
+		$(tex_config) \
+		--toc --toc-depth=2 \
+		--variable documentclass=book \
+		--variable print=true \
+		-o $(outputdir)/$(@) \
+		books/$(patsubst %-a4book.pdf,%,$(@))/*.mkd
 
 %-a5book.pdf:
 	echo "PDF  generation, printable a5 book... "
-	$(PDFBOOK_BIN) --quiet \
-			--keepinfo \
-			--landscape \
-			--twoside \
-			--a4paper \
-			--nup 2x2 \
-			--outfile output/$(@) \
-			-- $(OUTPUTDIR)/$(patsubst %-a5book.pdf,%,$(@))-a4book.pdf
+	$(pdfbook_bin) --quiet \
+		--keepinfo \
+		--landscape \
+		--twoside \
+		--a4paper \
+		--nup 2x2 \
+		--outfile output/$(@) \
+		-- $(outputdir)/$(patsubst %-a5book.pdf,%-a4book.pdf,$(@))
 
 %.tex:
 	echo "TEX  generation... "
-	$(PANDOC_BIN) $(GLOBAL_CONFIG) \
-			$(TEX_CONFIG) \
-			-o $(OUTPUTDIR)/$(@) \
-			books/$(patsubst %.tex,%,$(@))/*.mkd
+	$(pandoc_bin) \
+		$(tex_config) \
+		-o $(outputdir)/$(@) \
+		books/$(patsubst %.tex,%,$(@))/*.mkd
 
 %.epub:
 	echo "EPUB generation... "
-	$(PANDOC_BIN) --toc \
-			--epub-stylesheet=tpl_epub/book.css \
-			--epub-metadata=tpl_epub/metadata.fr.xml  \
-			$(GLOBAL_CONFIG) \
-			-o $(OUTPUTDIR)/$(@) \
-			books/$(patsubst %.epub,%,$(@))/*.mkd
+	$(pandoc_bin) \
+		$(pandoc_config) \
+		-t epub3 \
+		--toc --toc-depth=1 \
+		--template=$(templates_dir)/default.epub \
+		--epub-stylesheet=$(templates_dir)/epub.stylesheet.css \
+		--epub-metadata=$(templates_dir)/epub.metadata.fr.xml \
+		-o $(outputdir)/$(@) \
+		books/$(patsubst %.epub,%,$(@))/*.mkd
 
-%.html5:
-	echo "HTML5 generation... "
-	$(PANDOC_BIN) \
-			--toc --toc-depth=1 \
-			--template=templates/default.html5 \
-			$(GLOBAL_CONFIG) \
-			-t html5 \
-			-o $(OUTPUTDIR)/$(@) \
-			books/$(patsubst %.html5,%,$(@))/*.mkd
+%.html:
+	echo "HTML generation... "
+	$(pandoc_bin) \
+		$(pandoc_config) \
+		-t html5 \
+		--template=$(templates_dir)/default.html5 \
+		--toc --toc-depth=1 \
+		-o $(outputdir)/$(@) \
+		books/$(patsubst %.html,%,$(@))/*.mkd
 
 %.pdf: | %-report.pdf %-a4book.pdf %-a5book.pdf
 	@true
 
-%.all: | %.tex %.pdf %.epub %.html5
+%.all: | %.tex %.pdf %.epub %.html
 	@true
 
 %: | %.check %.all
