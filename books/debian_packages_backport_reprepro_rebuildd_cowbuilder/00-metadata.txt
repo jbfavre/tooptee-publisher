@@ -1,0 +1,15 @@
+Title: Backport de paquets logiciels sous GNU/Linux Debian
+Tags: reprepro, rebuildd, dput, gnupg-agent, pbuilder, cowbuilder, backport, package, debian
+Category: system
+Slug: debian_packages_backport_reprepro_rebuildd_cowbuilder
+Author: Jean Baptiste Favre
+Date: Mars 2013
+Language: french
+Lang: fr
+LangRFC4646: fr-FR
+Summary: Rétro porter des paquets n'est pas toujours une partie de plaisir.
+         Cependant, il est possible de simplifier la vie en automatisant les
+         étapes les moins importantes. Ce document décrit l'infrastructure
+         déployée dans le cadre tant professionnel que personnel pour me
+         permettre de générer le plus simplement possible des paquets Debian
+         et Ubuntu.

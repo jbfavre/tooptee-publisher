@@ -1,3 +1,0 @@
-% Backport de paquets logiciels sous GNU/Linux Debian
-% Jean Baptiste Favre
-% Mars 2013

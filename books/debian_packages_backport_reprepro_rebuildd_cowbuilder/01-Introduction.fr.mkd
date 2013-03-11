@@ -1,0 +1,78 @@
+# Introduction
+
+Il arrive que vous ayez besoin de gérer vos propres paquets Debian, soit
+parce qu'ils n'existent pas dans les dépôts officiels, soit parce que
+vous voulez utiliser les dernières versions amont disponibles tout en
+conservant la version stable de Debian. Dans tous les cas de figure, il
+est plus simple de faire en sorte que ces paquets soient gérés au
+travers d'un dépôt plutôt que de devoir effectuer leur déploiement
+manuellement.
+Qui plus est, les phases de compilation et de générations des paquets
+binaires devraient toujours être automatisées.
+
+Confronté à ce besoin, j'ai mis en place une plate-forme de compilation
+et génération de paquets. Ce document décrit la mise au point d'une telle
+infrastructure.
+
+Celle-ci est basée sur Debian Squeeze et, naturellement, compatible Ubuntu.
+
+À chacune des étapes de la construction d'un paquet, il existe plusieurs
+outils possibles. Parce qu'il faut bien choisir un outil parmi ceux
+disponibles, voici ceux que j'ai décidé d'utiliser:
+
+- `reprepro`: outil de gestion de dépôt de paquets logiciels
+- `cowbuilder`: outil qui réalisera, sous le contrôle de rebuildd, la
+compilation et la génération des paquets binaires
+- `dput`: permettra de gérer le déploiement des paquets source et
+binaires vers le dépôts
+- `rebuildd`: service qui va coordonner les phases de compilation et de
+génération des paquets binaires
+
+Les paquets source et binaire, de même que les fichiers `Release` et
+`Packages` du dépôt, seront signés par `gpg`.
+
+Le principe est simple:
+
+1.  **génération du paquet source** réalisée par le responsable du paquet,
+cette étape est manuelle
+2.  **ajout du paquet source dans un dépôt** réalisée par le responsable
+du paquet, cette étape est automatisée par `dput`
+3.  **génération du ou des paquets binaires** cette étape est automatisée
+par `cowbuilder`. La gestion des différentes tâches de compilation et de
+génération de paquet est effectuée par `rebuild`
+4.  **ajout des paquets binaires au dépôt** cette étape est automatisée
+par `dput`. Elle est déclenchée par `rebuildd`
+5.  **diffusion du dépôt** cette étape est automatisée par rsync
+
+Ce choix est pour beaucoup arbitraire. Il repose principalement sur la
+documentation que j'ai pu trouver sur le moment, ou encore le fait que
+je connaissais l'un ou l'autre outil de nom.
+
+Je n'ai pas la prétention de prétendre les maîtriser parfaitement, ni
+même celle d'affirmer qu'ils sont les meilleurs dans leur catégorie.
+Je pourrai tout juste expliquer que je suis parvenu à les faire
+fonctionner ensemble, et qu'ils répondent à mon besoin actuel.
+
+Ce rapide tour d'horizon permet de se faire une idée globale de la
+plate-forme cible.
+La mise en place de l'architecture sera fera de manière progressive.
+À chaque chapitre ou presque, il faudra ajuster les briques précédemment
+mises en place pour intégrer les nouveaux outils et supporter les nouvelles
+fonctionnalités.
+
+Nous commencerons par mettre en place `reprepro` seul au
+[chapitre 2](#reprepro), avant de lui adjoindre `gnupg-agent` au
+[chapitre 3](#gnupg-agent), pour la gestion de
+l'authentification `gpg`.
+
+`cowbuilder` fera lui l'objet du [chapitre 4](#cowbuilder). Nous verrons
+alors comment automatiser la compilation et la génération des paquet
+binaires à l'aide d'un `chroot`.
+
+Le [chapitre 5](#dput) verra l'entrée en scène de `dput` qui servira
+d'agent de liaison entre les différentes briques.
+
+Enfin, nous terminerons par `rebuildd` et le [chapitre 6](#rebuildd)
+dont le rôle sera de coordonner le tout.
+
+En guise de conclusion, nous aborderons quelques cas d'utilisation.
