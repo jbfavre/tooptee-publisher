@@ -1,4 +1,4 @@
-# gnupg-agent, le maître des clefs
+# gnupg-agent, le maître des clefs {#gnupg-agent}
 
 `gnupg-agent` permet de mémoriser, durant un temps déterminé, le mot de
 passe associé à une clef.
@@ -61,7 +61,7 @@ C'est tout pour `gpg-agent`. La dernière ligne du fichier
 éventuel `.bashrc`. C'est très utile dans le cas où vous y avez déjà une
 configuration fonctionnelle de votre shell.
 
-## Utilisation avec reprepro
+## Intégration avec reprepro
 
 `gnupg-agent` est configuré mais pas encore démarré. Vous avez donc 2
 possibilités:
@@ -133,3 +133,5 @@ $ . ~/.bash_profile
   GPG_AGENT_INFO=/tmp/gpg-ohwoPt/S.gpg-agent:20493:1; \
                  export GPG_AGENT_INFO;
 ~~~~~~~~~~
+
+## En résumé
