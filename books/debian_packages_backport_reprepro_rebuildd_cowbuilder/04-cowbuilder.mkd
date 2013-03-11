@@ -1,4 +1,4 @@
-# pbuilder & cowbuilder, les travailleurs de force
+# pbuilder & cowbuilder, les coolies  {#cowbuilder}
 
 Il est temps de rentrer dans le vif du sujet. En l'occurence, une fois que
 nous avons notre paquet source, il faut bien se préoccuper de le compiler et
@@ -253,3 +253,5 @@ déjà ou plus en cache.
 
 Vous pouvez vérifier que le paquet binaire est bien présent avec la
 commande `reprepro list <DISTRIBUTION>`
+
+## En résumé
