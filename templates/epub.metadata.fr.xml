@@ -1,0 +1,10 @@
+<dc:publisher>Tooptee Édition</dc:publisher>
+<dc:source>http://publications.jbfavre.org/</dc:source>
+<dc:identifier id="BookId">http://publications.jbfavre.org/system/debian_packages_backport_reprepro_rebuildd_cowbuilder</dc:identifier>
+<dc:rights>Licence Creative Commons Attribution - Partage dans les Mêmes Conditions 3.0</dc:rights>
+<dc:language>french</dc:language>
+<dc:creator>Jean Baptiste Favre</dc:creator>
+<dc:producer>Jean Baptiste Favre</dc:producer>
+<dc:subject>reprepro, rebuildd, dput, gnupg-agent, pbuilder, cowbuilder, backport, package, debian</dc:subject>
+<dc:title>Backport de paquets logiciels sous GNU/Linux Debian</dc:title>
+<dc:description>Rétro porter des paquets n'est pas toujours une partie de plaisir. Cependant, il est possible de simplifier la vie en automatisant les étapes les moins importantes. Ce document décrit l'infrastructure que j'ai mise au point et déployée dans un cadre tant professionnel que personnel pour me permettre de générer le plus simplement possible des paquets Debian et Ubuntu.</dc:description>

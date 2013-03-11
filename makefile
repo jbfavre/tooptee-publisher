@@ -80,13 +80,25 @@ tex_config= \
 	echo "EPUB generation... "
 	$(pandoc_bin) \
 		$(pandoc_config) \
-		-t epub3 \
+		-t epub \
 		--toc --toc-depth=1 \
 		--template=$(templates_dir)/default.epub \
 		--epub-stylesheet=$(templates_dir)/epub.stylesheet.css \
 		--epub-metadata=$(templates_dir)/epub.metadata.fr.xml \
 		-o $(outputdir)/$(@) \
 		books/$(patsubst %.epub,%,$(@))/*.mkd
+
+%.epub3:
+	echo "EPUB3 generation... "
+	$(pandoc_bin) \
+		$(pandoc_config) \
+		-t epub3 \
+		--toc --toc-depth=1 \
+		--template=$(templates_dir)/default.epub3 \
+		--epub-stylesheet=$(templates_dir)/epub.stylesheet.css \
+		--epub-metadata=$(templates_dir)/epub.metadata.fr.xml \
+		-o $(outputdir)/$(@) \
+		books/$(patsubst %.epub3,%,$(@))/*.mkd
 
 %.html:
 	echo "HTML generation... "
@@ -101,7 +113,7 @@ tex_config= \
 %.pdf: | %-report.pdf %-a4book.pdf %-a5book.pdf
 	@true
 
-%.all: | %.tex %.pdf %.epub %.html
+%.all: | %.tex %.pdf %.epub %.epub3 %.html
 	@true
 
 %: | %.check %.all
